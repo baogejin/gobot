@@ -20,7 +20,6 @@ import (
 
 	"github.com/qianlnk/log"
 	"github.com/qianlnk/qrcode"
-	"github.com/qianlnk/to"
 )
 
 type Wecat struct {
@@ -129,6 +128,10 @@ func (w *Wecat) GenQrcode() error {
 	if err != nil {
 		return err
 	}
+	//f, _ := os.Create("test.jpg")     //创建文件
+	//
+	//jpeg.Encode(f, img, nil)       //写入文件
+	//f.Close()
 
 	if err := qr.SetImage(img); err != nil {
 		return err
@@ -202,7 +205,11 @@ func (w *Wecat) redirect() error {
 	}
 
 	w.loginRes = lr
-	w.baseRequest["Uin"] = to.Int64(lr.Wxuin)
+	wxuin, err := strconv.Atoi(lr.Wxuin)
+	if err != nil {
+		return err
+	}
+	w.baseRequest["Uin"] = int64(wxuin)
 	w.baseRequest["Sid"] = lr.Wxsid
 	w.baseRequest["Skey"] = lr.Skey
 	w.baseRequest["DeviceID"] = w.deviceID
@@ -237,14 +244,17 @@ func (w *Wecat) Init() error {
 func (w *Wecat) strSyncKey() string {
 	kvs := []string{}
 	for _, list := range w.syncKey.List {
-		kvs = append(kvs, to.String(list.Key)+"_"+to.String(list.Val))
+		kvs = append(kvs, strconv.Itoa(list.Key)+"_"+strconv.Itoa(list.Val))
 	}
 
 	return strings.Join(kvs, "|")
 }
 
 func (w *Wecat) SyncCheck() (retcode, selector int) {
-	for _, host := range Hosts {
+	for {
+		//for _, host := range Hosts {
+		host := "webpush.wx.qq.com"
+		fmt.Println(host)
 		uri := fmt.Sprintf("https://%s/cgi-bin/mmwebwx-bin/synccheck", host)
 		v := url.Values{}
 		v.Add("r", w.timestamp())
@@ -258,14 +268,24 @@ func (w *Wecat) SyncCheck() (retcode, selector int) {
 
 		data, err := w.get(uri)
 		if err != nil {
-			//log.Error("sync check fail", err)
+			log.Error("sync check fail", err)
 			continue
 		}
 
 		re := regexp.MustCompile(`window.synccheck={retcode:"(\d+)",selector:"(\d+)"}`)
 		codes := re.FindStringSubmatch(string(data))
 		if len(codes) > 2 {
-			return to.Int(codes[1]), to.Int(codes[2])
+			code1, err := strconv.Atoi(codes[1])
+			if err != nil {
+				fmt.Println("atoi err  ", codes[1])
+				continue
+			}
+			code2, err := strconv.Atoi(codes[2])
+			if err != nil {
+				fmt.Println("atoi err  ", codes[2])
+				continue
+			}
+			return code1, code2
 		}
 	}
 
@@ -360,7 +380,7 @@ func (w *Wecat) run(desc string, f func() error) {
 func (w *Wecat) getReply(msg string, uid string) (string, error) {
 	params := make(map[string]interface{})
 	params["userid"] = uid
-	params["key"] = w.cfg.Tuling.Keys[w.user.NickName].Key
+	params["key"] = w.cfg.Tuling.RebotConf.Key
 	params["info"] = msg
 
 	body, err := w.post(w.cfg.Tuling.URL, params)
@@ -382,16 +402,15 @@ func (w *Wecat) getReply(msg string, uid string) (string, error) {
 		return reply.Text + " " + reply.URL, nil
 	case 302000:
 		var res string
-		news := reply.List.([]News)
-		for _, n := range news {
+		fmt.Println(reply.List)
+		for _, n := range reply.List {
 			res += fmt.Sprintf("%s\n%s\n", n.Article, n.DetailURL)
 		}
 
 		return res, nil
 	case 308000:
 		var res string
-		menu := reply.List.([]Menu)
-		for _, m := range menu {
+		for _, m := range reply.List {
 			res += fmt.Sprintf("%s\n%s\n%s\n", m.Name, m.Info, m.DetailURL)
 		}
 		return res, nil
@@ -458,9 +477,12 @@ func (w *Wecat) handle(msg *Message) error {
 						if err != nil {
 							return err
 						}
+						if reply == "旧服务已下线，请迁移至 http://api.fanyi.baidu.com" {
+							reply = "啥啥啥？"
+						}
 
 						if w.showRebot {
-							reply = w.cfg.Tuling.Keys[w.user.NickName].Name + ": " + reply
+							reply = w.cfg.Tuling.RebotConf.Name + ": " + reply
 						}
 						if err := w.SendMessage(reply, m.FromUserName); err != nil {
 							return err
@@ -479,9 +501,12 @@ func (w *Wecat) handle(msg *Message) error {
 						if err != nil {
 							return err
 						}
+						if reply == "旧服务已下线，请迁移至 http://api.fanyi.baidu.com" {
+							reply = "啥啥啥？"
+						}
 
 						if w.showRebot {
-							reply = w.cfg.Tuling.Keys[w.user.NickName].Name + ": " + reply
+							reply = w.cfg.Tuling.RebotConf.Name + ": " + reply
 						}
 						if err := w.SendMessage(reply, m.FromUserName); err != nil {
 							return err
@@ -528,7 +553,6 @@ func (w *Wecat) Dail() error {
 				if err != nil {
 					log.Error(err)
 				}
-
 				if err := w.handle(msg); err != nil {
 					log.Error(err)
 				}
@@ -555,7 +579,7 @@ func (w *Wecat) Start() {
 }
 
 func (w *Wecat) timestamp() string {
-	return to.String(time.Now().Unix())
+	return strconv.Itoa(int(time.Now().Unix()))
 }
 
 func (w *Wecat) get(uri string) ([]byte, error) {

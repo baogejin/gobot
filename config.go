@@ -1,13 +1,5 @@
 package gobot
 
-import (
-	"github.com/qianlnk/config"
-)
-
-const (
-	ConfigFile = "config.yaml"
-)
-
 type Config struct {
 	Tuling Tuling `yaml:"tuling"`
 }
@@ -17,15 +9,19 @@ type Rebot struct {
 	Key  string `yaml:"key"`
 }
 type Tuling struct {
-	URL  string           `yaml:"url"`
-	Keys map[string]Rebot `yaml:"keys"`
+	URL       string `yaml:"url"`
+	RebotConf *Rebot
 }
 
 func Load() Config {
-	var cfg Config
-	if err := config.Parse(&cfg, config.GetConfigAbsolutePath(ConfigFile)); err != nil {
-		panic(err)
+	cfg := Config{
+		Tuling: Tuling{
+			URL:       "http://www.tuling123.com/openapi/api",
+			RebotConf: &Rebot{},
+		},
 	}
+	cfg.Tuling.RebotConf.Name = "baoge"
+	cfg.Tuling.RebotConf.Key = "0c11301074b544cb99c36bc6f9e23079"
 
 	return cfg
 }
