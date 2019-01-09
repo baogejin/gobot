@@ -9,6 +9,7 @@ go get命令会自动下载github.com/qianlnk/目录下的相关依赖库
 到gobot/rebot目录下go build
 ./rebot
 扫码登录即可
+config.go里配置的图灵机器人有条数限制，建议修改使用自己注册的机器人key
 ```
 
 ## 主要模块
