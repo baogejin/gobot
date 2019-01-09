@@ -4,7 +4,11 @@ golang 实现微信聊天机器人
 ## 使用
 
 ```
-go get github.com/qianlnk/gobot
+go get github.com/baogejin/gobot
+go get命令会自动下载github.com/qianlnk/目录下的相关依赖库
+到gobot/rebot目录下go build
+./rebot
+扫码登录即可
 ```
 
 ## 主要模块
